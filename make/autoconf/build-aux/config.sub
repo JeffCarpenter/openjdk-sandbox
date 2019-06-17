@@ -27,6 +27,9 @@
 # autoconf system (which might easily get lost in a future update), we
 # wrap it and fix the broken property, if needed.
 
+echo x86_64-apple-darwin
+exit 0
+
 DIR=`dirname $0`
 
 # Allow wsl
