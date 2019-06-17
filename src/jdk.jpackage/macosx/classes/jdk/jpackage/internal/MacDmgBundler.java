@@ -30,6 +30,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Path.*;
 import java.text.MessageFormat;
 import java.util.*;
 
@@ -39,12 +40,13 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MacResources");
+    private static final String ZLIB_COMPRESSION_LEVEL = "5";
 
     static final String DEFAULT_BACKGROUND_IMAGE="background_dmg.png";
     static final String DEFAULT_DMG_SETUP_SCRIPT="DMGsetup.scpt";
     static final String TEMPLATE_BUNDLE_ICON = "GenericApp.icns";
 
-    static final String DEFAULT_LICENSE_PLIST="lic_template.plist";
+    static final String DEFAULT_LICENSE_PLIST = "lic_template.plist";
 
     public static final BundlerParamInfo<String> INSTALLER_SUFFIX =
             new StandardBundlerParam<> (
@@ -96,7 +98,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         Map<String, String> data = new HashMap<>();
         data.put("DEPLOY_ACTUAL_VOLUME_NAME", volumeName);
         data.put("DEPLOY_APPLICATION_NAME", APP_NAME.fetchFrom(params));
-        data.put("BACKGROUND_IMAGE", getConfig_VolumeBackground(params).toString());
+        data.put("BACKGROUND_IMAGE", getConfig_VolumeBackground(params).getName());
 
         data.put("DEPLOY_INSTALL_LOCATION", "(path to desktop folder)");
         data.put("DEPLOY_INSTALL_NAME", "Desktop");
@@ -307,9 +309,11 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         Files.createSymbolicLink(fs.getPath(mountedRoot.getPath(), "Applications"), fs.getPath("/Applications"));
 
         // background image
-        Path backgroundDirP = Files.createDirectory(fs.getPath(mountedRoot.getPath(), ".background"));
-        File backgroundFile = new File(mountedRoot, backgroundDirP.toString());
-        IOUtils.copyFile(getConfig_VolumeBackground(params), backgroundFile);
+        Path backgroundDirPath = Files.createDirectory(fs.getPath(mountedRoot.getPath(), ".background"));
+        File backgroundDir = new File(mountedRoot, backgroundDirPath.toString());
+//        IOUtils.copyFile(getConfig_VolumeBackground(params), backgroundDir);
+        Path bgPath = getConfig_VolumeBackground(params).toPath();
+        Files.copy(bgPath, fs.getPath(backgroundDirPath.toString(), bgPath.getFileName().toString()));
 
         // volume icon
         File volumeIconFile = new File(mountedRoot, ".VolumeIcon.icns");
@@ -355,6 +359,9 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "Skip enabling custom icon as SetFile utility is not found");
         }
 
+        pb = new ProcessBuilder("sync");
+        IOUtils.exec(pb);
+
         // Detach the temporary image
         pb = new ProcessBuilder(
                 hdiutil,
@@ -370,6 +377,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 protoDMG.getAbsolutePath(),
                 hdiUtilVerbosityFlag,
                 "-format", "UDZO",
+                "-imagekey", "zlib-level=" + ZLIB_COMPRESSION_LEVEL,
                 "-o", finalDMG.getAbsolutePath());
         IOUtils.exec(pb);
 
