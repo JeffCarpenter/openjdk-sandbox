@@ -26,7 +26,10 @@
 package jdk.jpackage.internal;
 
 import java.io.*;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.*;
 
@@ -61,7 +64,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         try {
             appImageDir.mkdirs();
 
-            if (prepareAppBundle(params, true) != null &&
+            if (prepareAppBundle(params, false) != null &&
                     prepareConfigFiles(params)) {
                 File configScript = getConfig_Script(params);
                 if (configScript.exists()) {
@@ -93,6 +96,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         Map<String, String> data = new HashMap<>();
         data.put("DEPLOY_ACTUAL_VOLUME_NAME", volumeName);
         data.put("DEPLOY_APPLICATION_NAME", APP_NAME.fetchFrom(params));
+        data.put("BACKGROUND_IMAGE", getConfig_VolumeBackground(params).toString());
 
         data.put("DEPLOY_INSTALL_LOCATION", "(path to desktop folder)");
         data.put("DEPLOY_INSTALL_NAME", "Desktop");
@@ -297,6 +301,15 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
         File mountedRoot = new File(imagesRoot.getAbsolutePath(),
                 APP_NAME.fetchFrom(params));
+
+        // Applications Link
+        FileSystem fs = FileSystems.getDefault();
+        Files.createSymbolicLink(fs.getPath(mountedRoot.getPath(), "Applications"), fs.getPath("/Applications"));
+
+        // background image
+        Path backgroundDirP = Files.createDirectory(fs.getPath(mountedRoot.getPath(), ".background"));
+        File backgroundFile = new File(mountedRoot, backgroundDirP.toString());
+        IOUtils.copyFile(getConfig_VolumeBackground(params), backgroundFile);
 
         // volume icon
         File volumeIconFile = new File(mountedRoot, ".VolumeIcon.icns");
